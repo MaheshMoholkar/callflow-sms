@@ -72,22 +72,23 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
       final data = response.data['data'] as Map<String, dynamic>?;
 
       if (data != null && mounted) {
-        final forceUpdate = data['force_update'] as bool? ?? false;
-        final serverVersionCode =
-            int.tryParse(data['version_code']?.toString() ?? '0') ?? 0;
+      final forceUpdate = data['force_update'] as bool? ?? false;
+      final serverVersionCode =
+          int.tryParse(data['version_code']?.toString() ?? '0') ?? 0;
 
-        final packageInfo = await PackageInfo.fromPlatform();
-        final currentVersionCode = int.tryParse(packageInfo.buildNumber) ?? 1;
+      final packageInfo = await PackageInfo.fromPlatform();
+      final currentVersionCode = int.tryParse(packageInfo.buildNumber) ?? 1;
 
-        if (serverVersionCode > currentVersionCode) {
-          return await _showUpdateDialog(
-            force: forceUpdate,
-            downloadUrl: data['download_url'] as String? ?? '',
-            releaseNotes: data['release_notes'] as String? ?? '',
-          );
-        }
+      if (serverVersionCode > currentVersionCode) {
+        return await _showUpdateDialog(
+          force: forceUpdate,
+          downloadUrl: data['download_url'] as String? ?? '',
+          releaseNotes: data['release_notes'] as String? ?? '',
+        );
       }
+    }
     } catch (_) {}
+
     return true;
   }
 
