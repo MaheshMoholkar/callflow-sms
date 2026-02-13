@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../core/native/native_bridge.dart';
 import '../../core/network/api_client.dart';
 import '../../core/network/auth_interceptor.dart';
@@ -24,10 +26,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
   Future<void> _initialize() async {
     await Future.delayed(const Duration(milliseconds: 500));
 
-    // Check version
-    await _checkVersion();
+    final shouldContinue = await _checkVersion();
+    if (!shouldContinue) return;
 
-    // Check auth — need both a token and a local user
     final hasToken = await AuthInterceptor.hasTokens();
     final db = ref.read(databaseProvider);
     final user = await db.getUser();
@@ -36,7 +37,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
       return;
     }
 
-    // Check required permissions
     final allGranted = await _checkAllPermissions();
     if (!allGranted) {
       if (mounted) context.go('/auth/permissions');
@@ -65,69 +65,96 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
     }
   }
 
-  Future<void> _checkVersion() async {
+  Future<bool> _checkVersion() async {
     try {
       final api = ref.read(apiClientProvider);
       final response = await api.get('/app/version');
       final data = response.data['data'] as Map<String, dynamic>?;
 
-      if (data != null) {
+      if (data != null && mounted) {
         final forceUpdate = data['force_update'] as bool? ?? false;
-        final serverVersionCode = int.tryParse(
-                data['version_code']?.toString() ?? '0') ??
-            0;
-        const currentVersionCode = 1; // From pubspec
+        final serverVersionCode =
+            int.tryParse(data['version_code']?.toString() ?? '0') ?? 0;
 
-        if (forceUpdate && serverVersionCode > currentVersionCode && mounted) {
-          await _showUpdateDialog(
-            force: true,
+        final packageInfo = await PackageInfo.fromPlatform();
+        final currentVersionCode = int.tryParse(packageInfo.buildNumber) ?? 1;
+
+        if (serverVersionCode > currentVersionCode) {
+          return await _showUpdateDialog(
+            force: forceUpdate,
             downloadUrl: data['download_url'] as String? ?? '',
             releaseNotes: data['release_notes'] as String? ?? '',
           );
         }
       }
-    } catch (_) {
-      // Offline — continue
-    }
+    } catch (_) {}
+    return true;
   }
 
-  Future<void> _showUpdateDialog({
+  Future<bool> _showUpdateDialog({
     required bool force,
     required String downloadUrl,
     required String releaseNotes,
   }) async {
+    bool shouldContinue = !force;
+
     await showDialog(
       context: context,
       barrierDismissible: !force,
-      builder: (context) => AlertDialog(
-        title: const Text('Update Available'),
+      builder: (ctx) => AlertDialog(
+        title: Text(force ? 'Update Required' : 'Update Available'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('A new version of CallFlow is available.'),
+            Text(
+              force
+                  ? 'A critical update is required to continue using CallFlow.'
+                  : 'A new version of CallFlow is available.',
+            ),
             if (releaseNotes.isNotEmpty) ...[
               const SizedBox(height: 12),
-              Text(releaseNotes, style: Theme.of(context).textTheme.bodySmall),
+              Container(
+                constraints: const BoxConstraints(maxHeight: 150),
+                child: SingleChildScrollView(
+                  child: Text(
+                    releaseNotes,
+                    style: Theme.of(ctx).textTheme.bodySmall,
+                  ),
+                ),
+              ),
             ],
           ],
         ),
         actions: [
           if (!force)
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () {
+                shouldContinue = true;
+                Navigator.pop(ctx);
+              },
               child: const Text('Later'),
             ),
           FilledButton(
-            onPressed: () {
-              // Open download URL
-              Navigator.pop(context);
+            onPressed: () async {
+              if (downloadUrl.isNotEmpty) {
+                final uri = Uri.parse(downloadUrl);
+                if (await canLaunchUrl(uri)) {
+                  await launchUrl(uri, mode: LaunchMode.externalApplication);
+                }
+              }
+              if (ctx.mounted) Navigator.pop(ctx);
+              if (!force) {
+                shouldContinue = true;
+              }
             },
             child: const Text('Update'),
           ),
         ],
       ),
     );
+
+    return shouldContinue;
   }
 
   @override
