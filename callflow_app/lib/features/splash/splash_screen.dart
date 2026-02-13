@@ -87,7 +87,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
         );
       }
     }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('Version check failed: $e');
+    }
 
     return true;
   }
@@ -128,14 +130,16 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
           ],
         ),
         actions: [
-          if (!force)
-            TextButton(
+          if (!force) ...[
+            OutlinedButton(
               onPressed: () {
                 shouldContinue = true;
                 Navigator.pop(ctx);
               },
               child: const Text('Later'),
             ),
+            const SizedBox(height: 12),
+          ],
           FilledButton(
             onPressed: () async {
               if (downloadUrl.isNotEmpty) {
