@@ -1,15 +1,21 @@
+# --- Admin build stage ---
+FROM node:20-alpine AS admin-build
+WORKDIR /app/admin
+COPY admin/package.json admin/package-lock.json ./
+RUN npm ci
+COPY admin/ .
+RUN npm run build
+
 # --- Backend build stage ---
 FROM golang:1.24-alpine AS api-build
 WORKDIR /app
 
 RUN apk add --no-cache git ca-certificates
 
-# Cache deps
-COPY go.mod go.sum ./
+COPY api/go.mod api/go.sum ./
 RUN go mod download
 
-# Copy source and build static binary
-COPY . .
+COPY api/ .
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags "-s -w" -o /out/api ./cmd/api
 
 
@@ -22,6 +28,7 @@ RUN adduser -D -g '' appuser
 WORKDIR /app
 
 COPY --from=api-build /out/api ./api
+COPY --from=admin-build /app/admin/dist ./admin/dist
 
 RUN chown -R appuser:appuser /app
 USER appuser

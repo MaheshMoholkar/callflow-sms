@@ -125,5 +125,8 @@ func SetupRouter(
 	// Admin routes (no auth — local use only)
 	adminHandler.RegisterRoutes(v1)
 
+	// Serve admin UI at /admin
+	serveAdmin(router)
+
 	return router
 }
