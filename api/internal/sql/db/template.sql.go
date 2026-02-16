@@ -14,7 +14,7 @@ import (
 const createTemplate = `-- name: CreateTemplate :one
 INSERT INTO templates (user_id, name, body, type, channel, image_url, image_key, language, is_default)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-RETURNING id, user_id, name, body, type, channel, image_url, image_key, language, is_default, created_at, updated_at
+RETURNING id, user_id, name, body, type, channel, language, is_default, created_at, updated_at, image_url, image_key
 `
 
 type CreateTemplateParams struct {
@@ -49,12 +49,12 @@ func (q *Queries) CreateTemplate(ctx context.Context, arg CreateTemplateParams) 
 		&i.Body,
 		&i.Type,
 		&i.Channel,
-		&i.ImageUrl,
-		&i.ImageKey,
 		&i.Language,
 		&i.IsDefault,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ImageUrl,
+		&i.ImageKey,
 	)
 	return i, err
 }
@@ -74,7 +74,7 @@ func (q *Queries) DeleteTemplate(ctx context.Context, arg DeleteTemplateParams) 
 }
 
 const getTemplateByID = `-- name: GetTemplateByID :one
-SELECT id, user_id, name, body, type, channel, image_url, image_key, language, is_default, created_at, updated_at FROM templates WHERE id = $1 AND user_id = $2
+SELECT id, user_id, name, body, type, channel, language, is_default, created_at, updated_at, image_url, image_key FROM templates WHERE id = $1 AND user_id = $2
 `
 
 type GetTemplateByIDParams struct {
@@ -92,18 +92,18 @@ func (q *Queries) GetTemplateByID(ctx context.Context, arg GetTemplateByIDParams
 		&i.Body,
 		&i.Type,
 		&i.Channel,
-		&i.ImageUrl,
-		&i.ImageKey,
 		&i.Language,
 		&i.IsDefault,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ImageUrl,
+		&i.ImageKey,
 	)
 	return i, err
 }
 
 const getTemplateByUserID = `-- name: GetTemplateByUserID :many
-SELECT id, user_id, name, body, type, channel, image_url, image_key, language, is_default, created_at, updated_at FROM templates WHERE user_id = $1 ORDER BY created_at DESC
+SELECT id, user_id, name, body, type, channel, language, is_default, created_at, updated_at, image_url, image_key FROM templates WHERE user_id = $1 ORDER BY created_at DESC
 `
 
 func (q *Queries) GetTemplateByUserID(ctx context.Context, userID int64) ([]Template, error) {
@@ -122,12 +122,12 @@ func (q *Queries) GetTemplateByUserID(ctx context.Context, userID int64) ([]Temp
 			&i.Body,
 			&i.Type,
 			&i.Channel,
-			&i.ImageUrl,
-			&i.ImageKey,
 			&i.Language,
 			&i.IsDefault,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.ImageUrl,
+			&i.ImageKey,
 		); err != nil {
 			return nil, err
 		}
@@ -151,7 +151,7 @@ SET name = $3,
     is_default = $10,
     updated_at = NOW()
 WHERE id = $1 AND user_id = $2
-RETURNING id, user_id, name, body, type, channel, image_url, image_key, language, is_default, created_at, updated_at
+RETURNING id, user_id, name, body, type, channel, language, is_default, created_at, updated_at, image_url, image_key
 `
 
 type UpdateTemplateParams struct {
@@ -188,12 +188,12 @@ func (q *Queries) UpdateTemplate(ctx context.Context, arg UpdateTemplateParams) 
 		&i.Body,
 		&i.Type,
 		&i.Channel,
-		&i.ImageUrl,
-		&i.ImageKey,
 		&i.Language,
 		&i.IsDefault,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ImageUrl,
+		&i.ImageKey,
 	)
 	return i, err
 }

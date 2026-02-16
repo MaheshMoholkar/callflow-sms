@@ -43,6 +43,7 @@ func main() {
 	// Repositories
 	userRepo := repository.NewUserRepository(dbPool)
 	templateRepo := repository.NewTemplateRepository(dbPool)
+	landingRepo := repository.NewLandingRepository(dbPool)
 	ruleRepo := repository.NewRuleRepository(dbPool)
 	contactRepo := repository.NewContactRepository(dbPool)
 
@@ -54,6 +55,7 @@ func main() {
 		log.Printf("UploadThing not configured: %v", uploadThingErr)
 	}
 	templateService := service.NewTemplateService(templateRepo, uploadThingStore)
+	landingService := service.NewLandingService(landingRepo, uploadThingStore)
 	ruleService := service.NewRuleService(ruleRepo)
 	contactService := service.NewContactService(contactRepo)
 
@@ -61,6 +63,7 @@ func main() {
 	authHandler := handler.NewAuthHandler(authService)
 	userHandler := handler.NewUserHandler(userService)
 	templateHandler := handler.NewTemplateHandler(templateService)
+	landingHandler := handler.NewLandingHandler(landingService, userService)
 	ruleHandler := handler.NewRuleHandler(ruleService)
 	syncHandler := handler.NewSyncHandler(userService, templateService, ruleService)
 	contactHandler := handler.NewContactHandler(contactService)
@@ -72,6 +75,7 @@ func main() {
 		authHandler,
 		userHandler,
 		templateHandler,
+		landingHandler,
 		ruleHandler,
 		syncHandler,
 		contactHandler,

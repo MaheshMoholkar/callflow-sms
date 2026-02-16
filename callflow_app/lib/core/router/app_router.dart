@@ -7,6 +7,7 @@ import '../../features/auth/screens/permissions_screen.dart';
 import '../../features/dashboard/screens/dashboard_screen.dart';
 import '../../features/templates/screens/template_list_screen.dart';
 import '../../features/templates/screens/template_edit_screen.dart';
+import '../../features/landing/screens/landing_edit_screen.dart';
 import '../../features/settings/screens/settings_screen.dart';
 import '../../features/rules/screens/rules_screen.dart';
 import '../../shared/widgets/shell_screen.dart';
@@ -45,6 +46,12 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: '/templates',
             pageBuilder: (context, state) => const NoTransitionPage(
               child: TemplateListScreen(),
+            ),
+          ),
+          GoRoute(
+            path: '/landing',
+            pageBuilder: (context, state) => const NoTransitionPage(
+              child: LandingEditScreen(),
             ),
           ),
           GoRoute(

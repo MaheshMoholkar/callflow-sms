@@ -3,6 +3,7 @@ package com.callflow.rules
 import android.content.Context
 import android.util.Log
 import com.callflow.service.CallLogReader
+import org.json.JSONArray
 import org.json.JSONObject
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -15,6 +16,10 @@ class LocalRuleEngine {
 
     companion object {
         const val TAG = "LocalRuleEngine"
+        private const val PREFS_NAME = "callflow_rule_state"
+        private const val PREFS_KEY_DATE = "sent_today_date"
+        private const val PREFS_KEY_NUMBERS = "sent_today_numbers"
+        private const val DEFAULT_PHONE_DIGITS = 10
     }
 
     data class TemplateData(val body: String, val imagePath: String?)
@@ -34,6 +39,7 @@ class LocalRuleEngine {
 
     private var config: JSONObject? = null
     private var businessName: String = ""
+    private var landingUrl: String = ""
     private var planType: String = "none"
     private var planExpiresAt: Long = 0
 
@@ -50,6 +56,7 @@ class LocalRuleEngine {
                 val json = JSONObject(configJson)
                 config = json.optJSONObject("rules")
                 businessName = json.optString("business_name", "")
+                landingUrl = json.optString("landing_url", "")
                 planType = json.optString("plan", "none")
                 planExpiresAt = json.optLong("plan_expires_at", 0)
 
@@ -77,15 +84,16 @@ class LocalRuleEngine {
     }
 
     fun getBusinessName(): String = lock.read { businessName }
+    fun getLandingUrl(): String = lock.read { landingUrl }
 
-    fun markSent(phone: String) {
+    fun markSent(phone: String, context: Context) {
         lock.write {
-            val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(java.util.Date())
-            if (sentTodayDate != today) {
-                sentToday.clear()
-                sentTodayDate = today
-            }
-            sentToday.add(phone.replace(Regex("[^0-9]"), ""))
+            val today = todayKey()
+            syncSentToday(context, today)
+            val normalizedPhone = normalizePhone(phone)
+            if (normalizedPhone.isEmpty()) return@write
+            sentToday.add(normalizedPhone)
+            persistSentToday(context)
         }
     }
 
@@ -94,24 +102,24 @@ class LocalRuleEngine {
         direction: String,
         contactName: String,
         context: Context
-    ): RuleEvaluation = lock.read {
-        val ruleConfig = config ?: return@read RuleEvaluation(
+    ): RuleEvaluation = lock.write {
+        val ruleConfig = config ?: return@write RuleEvaluation(
             shouldProcess = false, reason = "No rule config"
         )
 
         // 1. Plan validity
         if (planType == "none") {
-            return@read RuleEvaluation(shouldProcess = false, reason = "No active plan")
+            return@write RuleEvaluation(shouldProcess = false, reason = "No active plan")
         }
         if (planExpiresAt > 0 && System.currentTimeMillis() > planExpiresAt) {
-            return@read RuleEvaluation(shouldProcess = false, reason = "Plan expired")
+            return@write RuleEvaluation(shouldProcess = false, reason = "Plan expired")
         }
 
         // 3. Working hours
         val workingHours = ruleConfig.optJSONObject("working_hours")
         if (workingHours != null && workingHours.optBoolean("enabled", false)) {
             if (!isWithinWorkingHours(workingHours)) {
-                return@read RuleEvaluation(shouldProcess = false, reason = "Outside working hours")
+                return@write RuleEvaluation(shouldProcess = false, reason = "Outside working hours")
             }
         }
 
@@ -122,7 +130,7 @@ class LocalRuleEngine {
             for (i in 0 until excluded.length()) {
                 val excludedNum = excluded.optString(i, "").replace(Regex("[^0-9]"), "")
                 if (excludedNum.isNotEmpty() && cleanPhone.endsWith(excludedNum)) {
-                    return@read RuleEvaluation(
+                    return@write RuleEvaluation(
                         shouldProcess = false, reason = "Number excluded"
                     )
                 }
@@ -130,16 +138,13 @@ class LocalRuleEngine {
         }
 
         // 5. Unique per day
-        val uniquePerDay = ruleConfig.optBoolean("unique_per_day", false)
+        val uniquePerDay = ruleConfig.optBoolean("unique_per_day", true)
         if (uniquePerDay) {
-            val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(java.util.Date())
-            if (sentTodayDate != today) {
-                sentToday.clear()
-                sentTodayDate = today
-            }
-            val cleanPhone = phone.replace(Regex("[^0-9]"), "")
-            if (sentToday.contains(cleanPhone)) {
-                return@read RuleEvaluation(
+            val today = todayKey()
+            syncSentToday(context, today)
+            val cleanPhone = normalizePhone(phone)
+            if (cleanPhone.isNotEmpty() && sentToday.contains(cleanPhone)) {
+                return@write RuleEvaluation(
                     shouldProcess = false, reason = "Already messaged today"
                 )
             }
@@ -152,12 +157,12 @@ class LocalRuleEngine {
             if (mode != "all") {
                 val isContact = CallLogReader().isContact(context, phone)
                 if (mode == "contacts_only" && !isContact) {
-                    return@read RuleEvaluation(
+                    return@write RuleEvaluation(
                         shouldProcess = false, reason = "Non-contact filtered"
                     )
                 }
                 if (mode == "non_contacts_only" && isContact) {
-                    return@read RuleEvaluation(
+                    return@write RuleEvaluation(
                         shouldProcess = false, reason = "Contact filtered"
                     )
                 }
@@ -190,13 +195,13 @@ class LocalRuleEngine {
         }
 
         if (!sendSMS) {
-            return@read RuleEvaluation(
+            return@write RuleEvaluation(
                 shouldProcess = false,
                 reason = "No SMS configured for $direction calls"
             )
         }
 
-        return@read RuleEvaluation(
+        return@write RuleEvaluation(
             shouldProcess = true,
             sendSMS = sendSMS,
             smsTemplate = smsTemplate,
@@ -204,6 +209,59 @@ class LocalRuleEngine {
             smsSimSlot = smsSimSlot,
             delaySeconds = delaySeconds
         )
+    }
+
+    private fun todayKey(): String {
+        return SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(java.util.Date())
+    }
+
+    private fun normalizePhone(phone: String): String {
+        val digits = phone.replace(Regex("[^0-9]"), "")
+        if (digits.length <= DEFAULT_PHONE_DIGITS) return digits
+        return digits.takeLast(DEFAULT_PHONE_DIGITS)
+    }
+
+    // Must be called with lock.write held.
+    private fun syncSentToday(context: Context, today: String) {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val storedDate = prefs.getString(PREFS_KEY_DATE, "") ?: ""
+
+        if (storedDate != today) {
+            sentToday.clear()
+            sentTodayDate = today
+            prefs.edit()
+                .putString(PREFS_KEY_DATE, today)
+                .putString(PREFS_KEY_NUMBERS, "[]")
+                .apply()
+            return
+        }
+
+        sentToday.clear()
+        val raw = prefs.getString(PREFS_KEY_NUMBERS, "[]") ?: "[]"
+        try {
+            val arr = JSONArray(raw)
+            for (i in 0 until arr.length()) {
+                val value = arr.optString(i, "")
+                val normalized = normalizePhone(value)
+                if (normalized.isNotEmpty()) {
+                    sentToday.add(normalized)
+                }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to parse sent numbers cache", e)
+        }
+        sentTodayDate = today
+    }
+
+    // Must be called with lock.write held.
+    private fun persistSentToday(context: Context) {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val arr = JSONArray()
+        sentToday.forEach { arr.put(it) }
+        prefs.edit()
+            .putString(PREFS_KEY_DATE, sentTodayDate)
+            .putString(PREFS_KEY_NUMBERS, arr.toString())
+            .apply()
     }
 
     private fun getTemplateIdForDirection(

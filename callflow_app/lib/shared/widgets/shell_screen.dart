@@ -11,7 +11,8 @@ class ShellScreen extends ConsumerWidget {
   int _currentIndex(BuildContext context) {
     final location = GoRouterState.of(context).matchedLocation;
     if (location.startsWith('/templates')) return 1;
-    if (location.startsWith('/settings')) return 2;
+    if (location.startsWith('/landing')) return 2;
+    if (location.startsWith('/settings')) return 3;
     return 0;
   }
 
@@ -27,10 +28,16 @@ class ShellScreen extends ConsumerWidget {
           switch (index) {
             case 0:
               context.go('/dashboard');
+              break;
             case 1:
               context.go('/templates');
+              break;
             case 2:
+              context.go('/landing');
+              break;
+            case 3:
               context.go('/settings');
+              break;
           }
         },
         destinations: const [
@@ -43,6 +50,11 @@ class ShellScreen extends ConsumerWidget {
             icon: Icon(Icons.description_outlined),
             selectedIcon: Icon(Icons.description),
             label: 'Templates',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.public_outlined),
+            selectedIcon: Icon(Icons.public),
+            label: 'Landing',
           ),
           NavigationDestination(
             icon: Icon(Icons.settings_outlined),

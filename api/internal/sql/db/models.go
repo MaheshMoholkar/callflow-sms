@@ -16,6 +16,23 @@ type Contact struct {
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 }
 
+type LandingPage struct {
+	ID           int64              `json:"id"`
+	UserID       int64              `json:"user_id"`
+	Headline     pgtype.Text        `json:"headline"`
+	Description  pgtype.Text        `json:"description"`
+	ImageUrl     pgtype.Text        `json:"image_url"`
+	ImageKey     pgtype.Text        `json:"image_key"`
+	WhatsappUrl  pgtype.Text        `json:"whatsapp_url"`
+	FacebookUrl  pgtype.Text        `json:"facebook_url"`
+	InstagramUrl pgtype.Text        `json:"instagram_url"`
+	YoutubeUrl   pgtype.Text        `json:"youtube_url"`
+	Email        pgtype.Text        `json:"email"`
+	WebsiteUrl   pgtype.Text        `json:"website_url"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
+}
+
 type Rule struct {
 	ID        int64              `json:"id"`
 	UserID    int64              `json:"user_id"`
@@ -30,12 +47,12 @@ type Template struct {
 	Body      string             `json:"body"`
 	Type      string             `json:"type"`
 	Channel   string             `json:"channel"`
-	ImageUrl  pgtype.Text        `json:"image_url"`
-	ImageKey  pgtype.Text        `json:"image_key"`
 	Language  pgtype.Text        `json:"language"`
 	IsDefault bool               `json:"is_default"`
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+	ImageUrl  pgtype.Text        `json:"image_url"`
+	ImageKey  pgtype.Text        `json:"image_key"`
 }
 
 type Token struct {

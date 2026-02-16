@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:drift/drift.dart' as drift;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/constants.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/native/native_bridge.dart';
 import '../../../core/providers/core_providers.dart';
@@ -25,7 +26,7 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
   int? _smsMissedTemplateId;
 
   // Unique per day
-  bool _uniquePerDay = false;
+  bool _uniquePerDay = true;
 
   // Excluded numbers
   final _excludedNumbers = <String>[];
@@ -81,7 +82,7 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
             );
           }
 
-          _uniquePerDay = config['unique_per_day'] as bool? ?? false;
+          _uniquePerDay = config['unique_per_day'] as bool? ?? true;
 
           final excluded = config['excluded_numbers'] as List<dynamic>?;
           if (excluded != null) {
@@ -183,11 +184,14 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
       final bridge = ref.read(nativeBridgeProvider);
       final user = await db.getUser();
       final templates = await db.getTemplates();
+      final landingUrl =
+          user == null ? '' : '$landingBaseUrl/${user.id}';
       final nativeConfig = {
         'rules': _buildConfig(),
         'business_name': user?.businessName ?? '',
         'plan': user?.plan ?? 'none',
         'plan_expires_at': user?.planExpiresAt?.millisecondsSinceEpoch ?? 0,
+        'landing_url': landingUrl,
         'templates': templates
             .map((t) => {
                   'id': t.serverId ?? t.id,

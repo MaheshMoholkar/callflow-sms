@@ -17,6 +17,7 @@ type Querier interface {
 	DeleteExpiredTokens(ctx context.Context, expiresAt pgtype.Timestamptz) error
 	DeleteTemplate(ctx context.Context, arg DeleteTemplateParams) error
 	GetContactsByUserID(ctx context.Context, userID int64) ([]Contact, error)
+	GetLandingByUserID(ctx context.Context, userID int64) (LandingPage, error)
 	GetRuleByUserID(ctx context.Context, userID int64) (Rule, error)
 	GetTemplateByID(ctx context.Context, arg GetTemplateByIDParams) (Template, error)
 	GetTemplateByUserID(ctx context.Context, userID int64) ([]Template, error)
@@ -34,6 +35,7 @@ type Querier interface {
 	UpdateUserStatus(ctx context.Context, arg UpdateUserStatusParams) error
 	UpsertContact(ctx context.Context, arg UpsertContactParams) (Contact, error)
 	UpsertContactBatch(ctx context.Context, arg UpsertContactBatchParams) error
+	UpsertLandingByUserID(ctx context.Context, arg UpsertLandingByUserIDParams) (LandingPage, error)
 	UpsertRule(ctx context.Context, arg UpsertRuleParams) (Rule, error)
 }
 

@@ -40,7 +40,7 @@ class ChannelRouter(
             }
 
             // Mark number as sent for unique-per-day
-            ruleEngine.markSent(phone)
+            ruleEngine.markSent(phone, context)
 
             val delayMs = (evaluation.delaySeconds * 1000).toLong()
 
@@ -70,6 +70,7 @@ class ChannelRouter(
         val variables = mapOf(
             "contact_name" to contactName.ifEmpty { phone },
             "business_name" to ruleEngine.getBusinessName(),
+            "landing_url" to ruleEngine.getLandingUrl(),
             "phone_number" to phone,
             "call_duration" to formatDuration(durationSeconds),
             "date" to dateFormat.format(now),

@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"callflow/internal/domain/landing"
 	"callflow/internal/domain/template"
 )
 
@@ -64,8 +65,40 @@ func (s *UploadThingImageStore) UploadTemplateImage(
 	contentType string,
 	file []byte,
 ) (*template.UploadedImage, error) {
+	url, key, err := s.uploadImage(ctx, filename, contentType, file)
+	if err != nil {
+		return nil, err
+	}
+	return &template.UploadedImage{
+		URL: url,
+		Key: key,
+	}, nil
+}
+
+func (s *UploadThingImageStore) UploadLandingImage(
+	ctx context.Context,
+	filename,
+	contentType string,
+	file []byte,
+) (*landing.UploadedImage, error) {
+	url, key, err := s.uploadImage(ctx, filename, contentType, file)
+	if err != nil {
+		return nil, err
+	}
+	return &landing.UploadedImage{
+		URL: url,
+		Key: key,
+	}, nil
+}
+
+func (s *UploadThingImageStore) uploadImage(
+	ctx context.Context,
+	filename,
+	contentType string,
+	file []byte,
+) (string, string, error) {
 	if len(file) == 0 {
-		return nil, errors.New("empty file")
+		return "", "", errors.New("empty file")
 	}
 
 	fileName := sanitizeFileName(filename)
@@ -75,20 +108,25 @@ func (s *UploadThingImageStore) UploadTemplateImage(
 
 	uploadURL, fileKey, err := s.prepareUpload(ctx, fileName, contentType, len(file))
 	if err != nil {
-		return nil, err
+		return "", "", err
 	}
 
 	if err := s.putMultipartFile(ctx, uploadURL, fileName, contentType, file); err != nil {
-		return nil, err
+		return "", "", err
 	}
 
-	return &template.UploadedImage{
-		URL: fmt.Sprintf("https://%s.ufs.sh/f/%s", s.appID, fileKey),
-		Key: fileKey,
-	}, nil
+	return fmt.Sprintf("https://%s.ufs.sh/f/%s", s.appID, fileKey), fileKey, nil
 }
 
 func (s *UploadThingImageStore) DeleteTemplateImage(ctx context.Context, imageKey string) error {
+	return s.deleteImage(ctx, imageKey)
+}
+
+func (s *UploadThingImageStore) DeleteLandingImage(ctx context.Context, imageKey string) error {
+	return s.deleteImage(ctx, imageKey)
+}
+
+func (s *UploadThingImageStore) deleteImage(ctx context.Context, imageKey string) error {
 	imageKey = strings.TrimSpace(imageKey)
 	if imageKey == "" {
 		return nil

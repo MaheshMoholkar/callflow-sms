@@ -39,6 +39,7 @@ class _TemplateEditScreenState extends ConsumerState<TemplateEditScreen> {
     '{call_duration}',
     '{date}',
     '{time}',
+    '{landing_url}',
   ];
 
   @override

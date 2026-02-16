@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../constants.dart';
 import '../database/app_database.dart';
 import '../native/native_bridge.dart';
 import '../network/api_client.dart';
@@ -286,6 +287,8 @@ class SyncService {
       final rule = await _db.getRule();
       final user = await _db.getUser();
       final templates = await _db.getTemplates();
+      final landingUrl =
+          user == null ? '' : '$landingBaseUrl/${user.id}';
 
       if (rule == null) return;
 
@@ -294,6 +297,7 @@ class SyncService {
         'business_name': user?.businessName ?? '',
         'plan': user?.plan ?? 'none',
         'plan_expires_at': user?.planExpiresAt?.millisecondsSinceEpoch ?? 0,
+        'landing_url': landingUrl,
         'templates': templates
             .map((t) => {
                   'id': t.serverId ?? t.id,

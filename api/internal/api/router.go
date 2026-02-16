@@ -64,6 +64,7 @@ func SetupRouter(
 	authHandler *handler.AuthHandler,
 	userHandler *handler.UserHandler,
 	templateHandler *handler.TemplateHandler,
+	landingHandler *handler.LandingHandler,
 	ruleHandler *handler.RuleHandler,
 	syncHandler *handler.SyncHandler,
 	contactHandler *handler.ContactHandler,
@@ -100,6 +101,9 @@ func SetupRouter(
 	// Auth routes (public)
 	authHandler.RegisterRoutes(v1)
 
+	// Public landing routes
+	landingHandler.RegisterPublicRoutes(v1)
+
 	// Protected routes
 	mf := middleware.NewMiddlewareFactory(authService)
 	protected := v1.Group("")
@@ -110,6 +114,9 @@ func SetupRouter(
 
 		// Template routes
 		templateHandler.RegisterRoutes(protected)
+
+		// Landing routes
+		landingHandler.RegisterRoutes(protected)
 
 		// Rule routes
 		ruleHandler.RegisterRoutes(protected)
