@@ -6,7 +6,6 @@ class AuthInterceptor extends Interceptor {
 
   static const _storage = FlutterSecureStorage(
     aOptions: AndroidOptions(
-      encryptedSharedPreferences: true,
       resetOnError: true,
     ),
   );

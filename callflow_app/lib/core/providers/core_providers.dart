@@ -3,6 +3,8 @@ import 'dart:convert';
 
 import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart'
+    show StateNotifier, StateNotifierProvider;
 import '../constants.dart';
 import '../database/app_database.dart';
 import '../native/native_bridge.dart';

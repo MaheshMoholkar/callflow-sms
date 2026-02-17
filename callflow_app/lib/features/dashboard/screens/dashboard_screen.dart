@@ -170,7 +170,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 Expanded(
                   child: _StatCard(
                     label: 'Calls Today',
-                    value: callsToday.valueOrNull?.toString() ?? '0',
+                    value: callsToday.asData?.value.toString() ?? '0',
                     icon: Icons.call,
                     color: Theme.of(context).colorScheme.primary,
                   ),
@@ -179,7 +179,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 Expanded(
                   child: _StatCard(
                     label: 'SMS Sent',
-                    value: smsSent.valueOrNull?.toString() ?? '0',
+                    value: smsSent.asData?.value.toString() ?? '0',
                     icon: Icons.sms,
                     color: Theme.of(context).colorScheme.tertiary,
                   ),
