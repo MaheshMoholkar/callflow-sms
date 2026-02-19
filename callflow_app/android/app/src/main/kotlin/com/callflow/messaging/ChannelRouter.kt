@@ -82,7 +82,10 @@ class ChannelRouter(
 
         // Send SMS if enabled
         if (evaluation.sendSMS && evaluation.smsTemplate != null) {
-            val message = substituteVariables(evaluation.smsTemplate, braceVariables)
+            val message = buildOutboundSmsMessage(
+                template = evaluation.smsTemplate,
+                variables = braceVariables
+            )
             val imagePath = evaluation.smsImagePath?.trim().orEmpty()
             val outboundMessage = when {
                 imagePath.isEmpty() -> message
@@ -121,6 +124,25 @@ class ChannelRouter(
             result = result.replace(key, value)
         }
         return result
+    }
+
+    private fun buildOutboundSmsMessage(
+        template: String,
+        variables: Map<String, String>
+    ): String {
+        val substituted = substituteVariables(template, variables).trimEnd()
+        val landingUrl = ruleEngine.getLandingUrl().trim()
+        val shouldAppendUrl = ruleEngine.shouldAppendWebsiteUrlToSms()
+
+        if (!shouldAppendUrl || landingUrl.isEmpty()) {
+            return substituted
+        }
+
+        if (substituted.contains(landingUrl, ignoreCase = true)) {
+            return substituted
+        }
+
+        return if (substituted.isBlank()) landingUrl else "$substituted\n$landingUrl"
     }
 
     private fun formatDuration(seconds: Int): String {

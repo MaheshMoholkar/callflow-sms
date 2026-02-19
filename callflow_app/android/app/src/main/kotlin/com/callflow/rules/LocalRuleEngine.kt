@@ -40,6 +40,7 @@ class LocalRuleEngine {
     private var config: JSONObject? = null
     private var businessName: String = ""
     private var landingUrl: String = ""
+    private var appendWebsiteUrlToSms: Boolean = false
     private var planType: String = "none"
     private var planExpiresAt: Long = 0
 
@@ -57,6 +58,7 @@ class LocalRuleEngine {
                 config = json.optJSONObject("rules")
                 businessName = json.optString("business_name", "")
                 landingUrl = json.optString("landing_url", "")
+                appendWebsiteUrlToSms = json.optBoolean("append_website_url_to_sms", false)
                 planType = json.optString("plan", "none")
                 planExpiresAt = json.optLong("plan_expires_at", 0)
 
@@ -85,6 +87,7 @@ class LocalRuleEngine {
 
     fun getBusinessName(): String = lock.read { businessName }
     fun getLandingUrl(): String = lock.read { landingUrl }
+    fun shouldAppendWebsiteUrlToSms(): Boolean = lock.read { appendWebsiteUrlToSms }
 
     fun markSent(phone: String, context: Context) {
         lock.write {

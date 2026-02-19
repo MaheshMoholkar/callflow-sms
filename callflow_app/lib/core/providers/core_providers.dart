@@ -5,6 +5,7 @@ import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart'
     show StateNotifier, StateNotifierProvider;
+import 'package:shared_preferences/shared_preferences.dart';
 import '../constants.dart';
 import '../database/app_database.dart';
 import '../native/native_bridge.dart';
@@ -289,8 +290,8 @@ class SyncService {
       final rule = await _db.getRule();
       final user = await _db.getUser();
       final templates = await _db.getTemplates();
-      final landingUrl =
-          user == null ? '' : '$landingBaseUrl/${user.id}';
+      final landingUrl = user == null ? '' : '$landingBaseUrl/${user.id}';
+      final appendWebsiteUrlToSms = await _readAppendWebsiteUrlSetting();
 
       if (rule == null) return;
 
@@ -300,6 +301,7 @@ class SyncService {
         'plan': user?.plan ?? 'none',
         'plan_expires_at': user?.planExpiresAt?.millisecondsSinceEpoch ?? 0,
         'landing_url': landingUrl,
+        'append_website_url_to_sms': appendWebsiteUrlToSms,
         'templates': templates
             .map((t) => {
                   'id': t.serverId ?? t.id,
@@ -315,6 +317,15 @@ class SyncService {
 
   Future<void> pushLocalConfigToNative() async {
     await _pushRuleConfigToNative();
+  }
+
+  Future<bool> _readAppendWebsiteUrlSetting() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getBool(appendWebsiteUrlToSmsPrefKey) ?? false;
+    } catch (_) {
+      return false;
+    }
   }
 
   Future<void> pushRuleConfig(String configJson) async {

@@ -3,10 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/constants.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/network/api_client.dart';
+import '../../../core/providers/core_providers.dart';
 
 class WebsiteDetailsScreen extends ConsumerStatefulWidget {
   const WebsiteDetailsScreen({super.key});
@@ -29,6 +31,8 @@ class _WebsiteDetailsScreenState extends ConsumerState<WebsiteDetailsScreen> {
   String _locationUrl = '';
   String _websiteUrl = '';
   String? _imageUrl;
+  bool _appendWebsiteUrlToSms = false;
+  bool _updatingSmsAppendSetting = false;
 
   @override
   void initState() {
@@ -40,6 +44,7 @@ class _WebsiteDetailsScreenState extends ConsumerState<WebsiteDetailsScreen> {
     if (mounted) setState(() => _loading = true);
     final api = ref.read(apiClientProvider);
     await _loadWebsiteUrlFromCache();
+    await _loadAppendWebsiteUrlSetting();
 
     try {
       final response = await api.get('/landing');
@@ -60,6 +65,17 @@ class _WebsiteDetailsScreenState extends ConsumerState<WebsiteDetailsScreen> {
       }
     } finally {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _loadAppendWebsiteUrlSetting() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final value = prefs.getBool(appendWebsiteUrlToSmsPrefKey) ?? false;
+      if (!mounted) return;
+      setState(() => _appendWebsiteUrlToSms = value);
+    } catch (_) {
+      // Keep default false if preferences read fails.
     }
   }
 
@@ -191,6 +207,31 @@ class _WebsiteDetailsScreenState extends ConsumerState<WebsiteDetailsScreen> {
     }
   }
 
+  Future<void> _updateAppendWebsiteUrlSetting(bool enabled) async {
+    final previousValue = _appendWebsiteUrlToSms;
+    setState(() {
+      _appendWebsiteUrlToSms = enabled;
+      _updatingSmsAppendSetting = true;
+    });
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(appendWebsiteUrlToSmsPrefKey, enabled);
+      await ref.read(syncProvider).pushLocalConfigToNative();
+    } catch (e) {
+      if (mounted) {
+        setState(() => _appendWebsiteUrlToSms = previousValue);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to update SMS setting: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _updatingSmsAppendSetting = false);
+      }
+    }
+  }
+
   Widget _buildDetailBlock({
     required String label,
     required String value,
@@ -237,6 +278,24 @@ class _WebsiteDetailsScreenState extends ConsumerState<WebsiteDetailsScreen> {
             label: const Text('Copy URL'),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildSmsAppendToggleCard() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: SwitchListTile.adaptive(
+        title: const Text('Append website URL to SMS'),
+        subtitle:
+            const Text('Add your website link at the end of SMS templates.'),
+        value: _appendWebsiteUrlToSms,
+        onChanged:
+            _updatingSmsAppendSetting ? null : _updateAppendWebsiteUrlSetting,
       ),
     );
   }
@@ -347,6 +406,7 @@ class _WebsiteDetailsScreenState extends ConsumerState<WebsiteDetailsScreen> {
             label: 'Maps URL',
             value: locationUrl,
           ),
+        _buildSmsAppendToggleCard(),
         _buildWebsiteUrlCard(),
       ],
     );

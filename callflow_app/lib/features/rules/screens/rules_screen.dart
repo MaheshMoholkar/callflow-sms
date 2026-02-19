@@ -3,9 +3,7 @@ import 'dart:convert';
 import 'package:drift/drift.dart' as drift;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../core/constants.dart';
 import '../../../core/database/app_database.dart';
-import '../../../core/native/native_bridge.dart';
 import '../../../core/providers/core_providers.dart';
 import '../providers/rules_provider.dart';
 
@@ -180,27 +178,8 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
       final sync = ref.read(syncProvider);
       await sync.pushRuleConfig(configJson);
 
-      // Push to native bridge
-      final bridge = ref.read(nativeBridgeProvider);
-      final user = await db.getUser();
-      final templates = await db.getTemplates();
-      final landingUrl =
-          user == null ? '' : '$landingBaseUrl/${user.id}';
-      final nativeConfig = {
-        'rules': _buildConfig(),
-        'business_name': user?.businessName ?? '',
-        'plan': user?.plan ?? 'none',
-        'plan_expires_at': user?.planExpiresAt?.millisecondsSinceEpoch ?? 0,
-        'landing_url': landingUrl,
-        'templates': templates
-            .map((t) => {
-                  'id': t.serverId ?? t.id,
-                  'body': t.body,
-                  'image_path': t.imagePath,
-                })
-            .toList(),
-      };
-      await bridge.updateRuleConfig(jsonEncode(nativeConfig));
+      // Push to native bridge using shared sync path so all config flags stay in sync.
+      await sync.pushLocalConfigToNative();
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
