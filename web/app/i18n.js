@@ -49,7 +49,7 @@ export const TRANSLATIONS = {
       customerPageHint:
         'Use your assigned customer ID URL to open a specific business landing page.',
       advertisingLabel: 'Advertising',
-      advertisingTitle: 'Contact for Ads and Partnerships',
+      advertisingTitle: 'Contact for Ads',
     },
     landing: {
       partnerLabel: 'AdFlow Partner',
@@ -118,7 +118,7 @@ export const TRANSLATIONS = {
       customerPageHint:
         'विशिष्ट व्यवसायाचे लँडिंग पेज उघडण्यासाठी तुमचा ग्राहक ID URL वापरा.',
       advertisingLabel: 'जाहिरात',
-      advertisingTitle: 'जाहिरात आणि पार्टनरशिपसाठी संपर्क',
+      advertisingTitle: 'जाहिरातीसाठी संपर्क',
     },
     landing: {
       partnerLabel: 'AdFlow पार्टनर',
