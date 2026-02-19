@@ -40,16 +40,16 @@ func (s *LandingService) UpsertByUserID(ctx context.Context, userID int64, data 
 	}
 
 	// Normalize inputs
-	data.Headline = normalizeStringPtr(data.Headline)
-	data.Description = normalizeStringPtr(data.Description)
-	data.ImageURL = normalizeURL(data.ImageURL)
-	data.ImageKey = normalizeStringPtr(data.ImageKey)
-	data.WhatsappURL = normalizeStringPtr(data.WhatsappURL)
-	data.FacebookURL = normalizeStringPtr(data.FacebookURL)
-	data.InstagramURL = normalizeStringPtr(data.InstagramURL)
-	data.YoutubeURL = normalizeStringPtr(data.YoutubeURL)
-	data.Email = normalizeStringPtr(data.Email)
-	data.WebsiteURL = normalizeStringPtr(data.WebsiteURL)
+	data.Headline = normalizeLandingStringPtr(data.Headline)
+	data.Description = normalizeLandingStringPtr(data.Description)
+	data.ImageURL = normalizeLandingURL(data.ImageURL)
+	data.ImageKey = normalizeLandingStringPtr(data.ImageKey)
+	data.WhatsappURL = normalizeLandingStringPtr(data.WhatsappURL)
+	data.FacebookURL = normalizeLandingStringPtr(data.FacebookURL)
+	data.InstagramURL = normalizeLandingStringPtr(data.InstagramURL)
+	data.YoutubeURL = normalizeLandingStringPtr(data.YoutubeURL)
+	data.Email = normalizeLandingStringPtr(data.Email)
+	data.WebsiteURL = normalizeLandingStringPtr(data.WebsiteURL)
 
 	// Preserve image key when URL is unchanged and client does not resend key.
 	if existing != nil && data.ImageURL != nil && existing.ImageURL != nil &&
@@ -71,7 +71,7 @@ func (s *LandingService) UpsertByUserID(ctx context.Context, userID int64, data 
 		return nil, err
 	}
 
-	if existing != nil && shouldDeleteOldImage(existing.ImageKey, updated.ImageKey) {
+	if existing != nil && shouldDeleteOldLandingImage(existing.ImageKey, updated.ImageKey) {
 		s.deleteImageKeyAsync(existing.ImageKey)
 	}
 
@@ -99,8 +99,8 @@ func validateLandingImageFields(imageURL, imageKey *string, requireImageKey bool
 	return nil
 }
 
-func normalizeURL(v *string) *string {
-	value := normalizeStringPtr(v)
+func normalizeLandingURL(v *string) *string {
+	value := normalizeLandingStringPtr(v)
 	if value == nil {
 		return nil
 	}
@@ -111,7 +111,7 @@ func normalizeURL(v *string) *string {
 	return &trimmed
 }
 
-func normalizeStringPtr(v *string) *string {
+func normalizeLandingStringPtr(v *string) *string {
 	if v == nil {
 		return nil
 	}
@@ -122,7 +122,7 @@ func normalizeStringPtr(v *string) *string {
 	return &trimmed
 }
 
-func shouldDeleteOldImage(oldKey, newKey *string) bool {
+func shouldDeleteOldLandingImage(oldKey, newKey *string) bool {
 	if oldKey == nil || *oldKey == "" {
 		return false
 	}

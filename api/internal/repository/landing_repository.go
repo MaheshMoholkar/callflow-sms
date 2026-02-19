@@ -41,16 +41,16 @@ func (r *LandingRepository) GetByUserID(ctx context.Context, userID int64) (*lan
 func (r *LandingRepository) UpsertByUserID(ctx context.Context, userID int64, data landing.LandingUpsert) (*landing.Landing, error) {
 	row, err := r.queries.UpsertLandingByUserID(ctx, db.UpsertLandingByUserIDParams{
 		UserID:       userID,
-		Headline:     nullableText(data.Headline),
-		Description:  nullableText(data.Description),
-		ImageUrl:     nullableText(data.ImageURL),
-		ImageKey:     nullableText(data.ImageKey),
-		WhatsappUrl:  nullableText(data.WhatsappURL),
-		FacebookUrl:  nullableText(data.FacebookURL),
-		InstagramUrl: nullableText(data.InstagramURL),
-		YoutubeUrl:   nullableText(data.YoutubeURL),
-		Email:        nullableText(data.Email),
-		WebsiteUrl:   nullableText(data.WebsiteURL),
+		Headline:     nullableLandingText(data.Headline),
+		Description:  nullableLandingText(data.Description),
+		ImageUrl:     nullableLandingText(data.ImageURL),
+		ImageKey:     nullableLandingText(data.ImageKey),
+		WhatsappUrl:  nullableLandingText(data.WhatsappURL),
+		FacebookUrl:  nullableLandingText(data.FacebookURL),
+		InstagramUrl: nullableLandingText(data.InstagramURL),
+		YoutubeUrl:   nullableLandingText(data.YoutubeURL),
+		Email:        nullableLandingText(data.Email),
+		WebsiteUrl:   nullableLandingText(data.WebsiteURL),
 	})
 	if err != nil {
 		return nil, err
@@ -119,7 +119,7 @@ func dbLandingToModel(row db.LandingPage) *landing.Landing {
 	}
 }
 
-func nullableText(v *string) pgtype.Text {
+func nullableLandingText(v *string) pgtype.Text {
 	if v == nil {
 		return pgtype.Text{Valid: false}
 	}
