@@ -1,4 +1,4 @@
-const API_BASE = 'https://callflow-api-production.up.railway.app/api/v1'
+const API_BASE = 'https://adflow.up.railway.app/api/v1'
 
 async function request(path, options = {}) {
   const res = await fetch(`${API_BASE}${path}`, {

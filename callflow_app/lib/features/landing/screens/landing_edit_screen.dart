@@ -2,8 +2,8 @@ import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as p;
 import '../../../core/constants.dart';
@@ -20,7 +20,7 @@ class LandingEditScreen extends ConsumerStatefulWidget {
 class _LandingEditScreenState extends ConsumerState<LandingEditScreen> {
   final _formKey = GlobalKey<FormState>();
   final _headlineController = TextEditingController();
-  final _descriptionController = TextEditingController();
+  final List<TextEditingController> _descriptionPointControllers = [];
   final _whatsappController = TextEditingController();
   final _facebookController = TextEditingController();
   final _instagramController = TextEditingController();
@@ -34,17 +34,21 @@ class _LandingEditScreenState extends ConsumerState<LandingEditScreen> {
   bool _removeImageOnSave = false;
   bool _loading = true;
   bool _saving = false;
+  bool _showLandingUrlAfterSave = false;
 
   @override
   void initState() {
     super.initState();
+    _descriptionPointControllers.add(TextEditingController());
     _loadLanding();
   }
 
   @override
   void dispose() {
     _headlineController.dispose();
-    _descriptionController.dispose();
+    for (final controller in _descriptionPointControllers) {
+      controller.dispose();
+    }
     _whatsappController.dispose();
     _facebookController.dispose();
     _instagramController.dispose();
@@ -59,6 +63,7 @@ class _LandingEditScreenState extends ConsumerState<LandingEditScreen> {
     setState(() => _loading = true);
     final api = ref.read(apiClientProvider);
     await _loadLandingUrlFromCache();
+
     try {
       final response = await api.get('/landing');
       _applyLandingResponse(response.data);
@@ -94,8 +99,7 @@ class _LandingEditScreenState extends ConsumerState<LandingEditScreen> {
         : <String, dynamic>{};
 
     _headlineController.text = landing['headline'] as String? ?? '';
-    _descriptionController.text =
-        _normalizeDescriptionPoints(landing['description'] as String? ?? '');
+    _setDescriptionPointsFromRaw(landing['description'] as String? ?? '');
     _whatsappController.text = landing['whatsapp_url'] as String? ?? '';
     _facebookController.text = landing['facebook_url'] as String? ?? '';
     _instagramController.text = landing['instagram_url'] as String? ?? '';
@@ -136,8 +140,8 @@ class _LandingEditScreenState extends ConsumerState<LandingEditScreen> {
     return null;
   }
 
-  String _normalizeDescriptionPoints(String raw) {
-    final points = raw
+  List<String> _descriptionPointsFromRaw(String raw) {
+    return raw
         .split(RegExp(r'\r?\n'))
         .map((line) => line.trim())
         .map(
@@ -148,7 +152,50 @@ class _LandingEditScreenState extends ConsumerState<LandingEditScreen> {
         )
         .where((line) => line.isNotEmpty)
         .toList();
-    return points.join('\n');
+  }
+
+  String _normalizedDescriptionPayload() {
+    final points = _descriptionPointControllers
+        .map((controller) => controller.text)
+        .join('\n');
+    return _descriptionPointsFromRaw(points).join('\n');
+  }
+
+  void _setDescriptionPointsFromRaw(String raw) {
+    final points = _descriptionPointsFromRaw(raw);
+    final values = points.isEmpty ? [''] : points;
+
+    for (final controller in _descriptionPointControllers) {
+      controller.dispose();
+    }
+
+    _descriptionPointControllers
+      ..clear()
+      ..addAll(
+        values.map((point) => TextEditingController(text: point)),
+      );
+
+    if (mounted && !_loading) {
+      setState(() {});
+    }
+  }
+
+  void _addDescriptionPoint([String initialValue = '']) {
+    setState(() {
+      _descriptionPointControllers
+          .add(TextEditingController(text: initialValue));
+    });
+  }
+
+  void _removeDescriptionPoint(int index) {
+    if (_descriptionPointControllers.length == 1) {
+      _descriptionPointControllers.first.clear();
+      return;
+    }
+
+    final controller = _descriptionPointControllers.removeAt(index);
+    controller.dispose();
+    setState(() {});
   }
 
   void _setLandingUrlFromUserId(int? userId) {
@@ -162,8 +209,10 @@ class _LandingEditScreenState extends ConsumerState<LandingEditScreen> {
   Future<void> _copyLandingUrl() async {
     final url = _websiteController.text.trim();
     if (url.isEmpty) return;
+
     await Clipboard.setData(ClipboardData(text: url));
     if (!mounted) return;
+
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Landing URL copied')),
     );
@@ -214,16 +263,43 @@ class _LandingEditScreenState extends ConsumerState<LandingEditScreen> {
     if (body is! Map) {
       throw Exception('Invalid upload response');
     }
+
     final data = body['data'];
     if (data is! Map) {
       throw Exception('Missing upload data');
     }
+
     final imageUrl = data['image_url'] as String?;
     final imageKey = data['image_key'] as String?;
     if (imageUrl == null || imageUrl.isEmpty || imageKey == null || imageKey.isEmpty) {
       throw Exception('Upload response missing image URL/key');
     }
+
     return (imageUrl, imageKey);
+  }
+
+  Future<void> _upsertLanding(
+    ApiClient api,
+    Map<String, dynamic> payload,
+  ) async {
+    try {
+      await api.put('/landing', data: payload);
+      return;
+    } on DioException catch (e) {
+      final code = e.response?.statusCode;
+      if (code != 404 && code != 405) rethrow;
+    }
+
+    try {
+      await api.put('/landing/', data: payload);
+      return;
+    } on DioException catch (e) {
+      final code = e.response?.statusCode;
+      if (code != 404 && code != 405) rethrow;
+    }
+
+    // Backward compatibility for deployments using POST for upsert.
+    await api.post('/landing', data: payload);
   }
 
   Future<void> _save() async {
@@ -247,7 +323,7 @@ class _LandingEditScreenState extends ConsumerState<LandingEditScreen> {
 
       final payload = {
         'headline': _headlineController.text.trim(),
-        'description': _normalizeDescriptionPoints(_descriptionController.text),
+        'description': _normalizedDescriptionPayload(),
         'image_url': effectiveImageUrl,
         'image_key': effectiveImageKey,
         'whatsapp_url': _whatsappController.text.trim(),
@@ -259,12 +335,13 @@ class _LandingEditScreenState extends ConsumerState<LandingEditScreen> {
         'location_url': _locationController.text.trim(),
       };
 
-      await api.put('/landing', data: payload);
+      await _upsertLanding(api, payload);
 
       setState(() {
         _imageUrl = effectiveImageUrl;
         _pendingImagePath = null;
         _removeImageOnSave = false;
+        _showLandingUrlAfterSave = true;
       });
 
       if (mounted) {
@@ -293,21 +370,7 @@ class _LandingEditScreenState extends ConsumerState<LandingEditScreen> {
     }
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Landing Page'),
-        actions: [
-          TextButton(
-            onPressed: _saving ? null : _save,
-            child: _saving
-                ? const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Text('Save'),
-          ),
-        ],
-      ),
+      appBar: AppBar(title: const Text('Landing Page')),
       body: Form(
         key: _formKey,
         child: ListView(
@@ -325,18 +388,82 @@ class _LandingEditScreenState extends ConsumerState<LandingEditScreen> {
               keyboardType: TextInputType.multiline,
             ),
             const SizedBox(height: 12),
-            TextFormField(
-              controller: _descriptionController,
-              decoration: const InputDecoration(
-                labelText: 'Description Points',
-                hintText: 'Add one point per line',
-                alignLabelWithHint: true,
-              ),
-              maxLines: 5,
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Description Points',
+                    style: Theme.of(context).textTheme.labelLarge,
+                  ),
+                ),
+                TextButton.icon(
+                  onPressed: _addDescriptionPoint,
+                  icon: const Icon(Icons.add),
+                  label: const Text('Add Point'),
+                ),
+              ],
             ),
-            const SizedBox(height: 16),
-            Text('Landing Image',
-                style: Theme.of(context).textTheme.labelLarge),
+            const SizedBox(height: 4),
+            ...List.generate(_descriptionPointControllers.length, (index) {
+              final isOnlyRow = _descriptionPointControllers.length == 1;
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(top: 14, right: 8),
+                      child: Text('${index + 1}.'),
+                    ),
+                    Expanded(
+                      child: TextFormField(
+                        controller: _descriptionPointControllers[index],
+                        decoration: InputDecoration(
+                          hintText: 'Point ${index + 1}',
+                        ),
+                        textInputAction: TextInputAction.next,
+                        onFieldSubmitted: (_) {
+                          if (index ==
+                                  _descriptionPointControllers.length - 1 &&
+                              _descriptionPointControllers[index]
+                                  .text
+                                  .trim()
+                                  .isNotEmpty) {
+                            _addDescriptionPoint();
+                          }
+                        },
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: isOnlyRow ? 'Clear point' : 'Remove point',
+                      onPressed: () => _removeDescriptionPoint(index),
+                      icon: Icon(
+                        isOnlyRow
+                            ? Icons.clear
+                            : Icons.remove_circle_outline,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }),
+            if (_descriptionPointControllers.length == 1)
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Use Add Point for separate bullet lines.',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                ),
+              ),
+            const SizedBox(height: 4),
+            const Divider(),
+            const SizedBox(height: 12),
+            Text(
+              'Landing Image',
+              style: Theme.of(context).textTheme.labelLarge,
+            ),
             const SizedBox(height: 8),
             if (_pendingImagePath != null &&
                 File(_pendingImagePath!).existsSync())
@@ -438,19 +565,6 @@ class _LandingEditScreenState extends ConsumerState<LandingEditScreen> {
             ),
             const SizedBox(height: 12),
             TextFormField(
-              controller: _websiteController,
-              readOnly: true,
-              decoration: InputDecoration(
-                labelText: 'Website URL',
-                suffixIcon: IconButton(
-                  tooltip: 'Copy landing URL',
-                  onPressed: _copyLandingUrl,
-                  icon: const Icon(Icons.copy_rounded),
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
               controller: _locationController,
               decoration: const InputDecoration(
                 labelText: 'Maps URL',
@@ -468,6 +582,34 @@ class _LandingEditScreenState extends ConsumerState<LandingEditScreen> {
                     )
                   : const Text('Save Landing Page'),
             ),
+            if (_showLandingUrlAfterSave &&
+                _websiteController.text.trim().isNotEmpty) ...[
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Landing URL',
+                      style: Theme.of(context).textTheme.labelLarge,
+                    ),
+                    const SizedBox(height: 6),
+                    SelectableText(_websiteController.text.trim()),
+                    const SizedBox(height: 10),
+                    OutlinedButton.icon(
+                      onPressed: _copyLandingUrl,
+                      icon: const Icon(Icons.copy_rounded),
+                      label: const Text('Copy URL'),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ],
         ),
       ),

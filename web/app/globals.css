@@ -34,6 +34,69 @@ a {
   padding: 32px 20px 64px;
 }
 
+.site-home {
+  display: grid;
+  gap: 20px;
+}
+
+.site-hero {
+  background: linear-gradient(120deg, rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0.98));
+  border-radius: 20px;
+  box-shadow: 0 20px 60px rgba(37, 12, 25, 0.12);
+  padding: 28px;
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 20px;
+}
+
+.site-hero h1 {
+  margin: 0 0 10px;
+  font-size: clamp(30px, 4vw, 46px);
+  line-height: 1.1;
+}
+
+.site-subtitle {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.7;
+  max-width: 58ch;
+}
+
+.site-hero-actions {
+  margin-top: 18px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.action-ghost {
+  background: transparent;
+}
+
+.site-stat-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.site-stat-card {
+  background: rgba(162, 69, 99, 0.06);
+  border: 1px solid rgba(162, 69, 99, 0.2);
+  border-radius: 14px;
+  padding: 14px;
+}
+
+.site-stat-value {
+  margin: 0 0 4px;
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--accent-2);
+}
+
+.site-stat-label {
+  margin: 0;
+  color: var(--muted);
+}
+
 .hero {
   background: linear-gradient(120deg, rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0.98));
   border-radius: 20px;
@@ -87,6 +150,61 @@ a {
   border-radius: 20px;
   padding: 24px;
   box-shadow: 0 16px 40px rgba(37, 12, 25, 0.08);
+}
+
+.site-section-title {
+  margin: 6px 0 0;
+  font-size: clamp(24px, 3vw, 32px);
+}
+
+.site-grid {
+  margin-top: 16px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.site-card {
+  border-radius: 14px;
+  border: 1px solid #f0e6ee;
+  background: #fff;
+  padding: 16px;
+}
+
+.site-card h3 {
+  margin: 0 0 8px;
+}
+
+.site-card p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.site-steps {
+  margin: 16px 0 0;
+  padding-left: 20px;
+  color: var(--muted);
+  line-height: 1.7;
+}
+
+.site-steps li + li {
+  margin-top: 8px;
+}
+
+.site-cta {
+  margin-top: 0;
+}
+
+.site-url {
+  margin: 14px 0 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(162, 69, 99, 0.08);
+  border: 1px solid rgba(162, 69, 99, 0.2);
+  color: var(--accent-2);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 14px;
 }
 
 .section img {
@@ -154,6 +272,14 @@ a {
 }
 
 @media (max-width: 780px) {
+  .site-hero {
+    grid-template-columns: 1fr;
+  }
+
+  .site-grid {
+    grid-template-columns: 1fr;
+  }
+
   .hero {
     grid-template-columns: 1fr;
   }

@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 
 async function fetchLanding(id) {
-  const base = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8080/api/v1';
+  const base = process.env.NEXT_PUBLIC_API_BASE || 'https://adflow.up.railway.app/api/v1';
   const res = await fetch(`${base}/public/landing/${id}`, { cache: 'no-store' });
   if (!res.ok) {
     return null;
