@@ -4,8 +4,10 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as p;
+
 import '../../../core/constants.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/network/api_client.dart';
@@ -34,7 +36,6 @@ class _LandingEditScreenState extends ConsumerState<LandingEditScreen> {
   bool _removeImageOnSave = false;
   bool _loading = true;
   bool _saving = false;
-  bool _showLandingUrlAfterSave = false;
 
   @override
   void initState() {
@@ -62,7 +63,7 @@ class _LandingEditScreenState extends ConsumerState<LandingEditScreen> {
   Future<void> _loadLanding() async {
     setState(() => _loading = true);
     final api = ref.read(apiClientProvider);
-    await _loadLandingUrlFromCache();
+    await _loadWebsiteUrlFromCache();
 
     try {
       final response = await api.get('/landing');
@@ -74,13 +75,13 @@ class _LandingEditScreenState extends ConsumerState<LandingEditScreen> {
         await _loadLocationFromProfile(api);
       } else if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to load landing page: $e')),
+          SnackBar(content: Text('Failed to load website details: $e')),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to load landing page: $e')),
+          SnackBar(content: Text('Failed to load website details: $e')),
         );
       }
     } finally {
@@ -105,15 +106,15 @@ class _LandingEditScreenState extends ConsumerState<LandingEditScreen> {
     _instagramController.text = landing['instagram_url'] as String? ?? '';
     _youtubeController.text = landing['youtube_url'] as String? ?? '';
     _emailController.text = landing['email'] as String? ?? '';
-    _setLandingUrlFromUserId(_extractInt(landing['user_id']));
+    _setWebsiteUrlFromUserId(_extractInt(landing['user_id']));
     _imageUrl = landing['image_url'] as String?;
     _locationController.text = payload['location_url'] as String? ?? '';
   }
 
-  Future<void> _loadLandingUrlFromCache() async {
+  Future<void> _loadWebsiteUrlFromCache() async {
     try {
       final user = await ref.read(databaseProvider).getUser();
-      _setLandingUrlFromUserId(user?.id);
+      _setWebsiteUrlFromUserId(user?.id);
     } catch (_) {}
   }
 
@@ -126,7 +127,7 @@ class _LandingEditScreenState extends ConsumerState<LandingEditScreen> {
       if (data is! Map) return;
       final user = data['user'];
       if (user is! Map) return;
-      _setLandingUrlFromUserId(_extractInt(user['id']));
+      _setWebsiteUrlFromUserId(_extractInt(user['id']));
       _locationController.text = user['location_url'] as String? ?? '';
     } catch (_) {
       // No-op: location field can remain empty if profile fetch fails.
@@ -198,7 +199,7 @@ class _LandingEditScreenState extends ConsumerState<LandingEditScreen> {
     setState(() {});
   }
 
-  void _setLandingUrlFromUserId(int? userId) {
+  void _setWebsiteUrlFromUserId(int? userId) {
     if (!mounted || userId == null) return;
     final base = landingBaseUrl.endsWith('/')
         ? landingBaseUrl.substring(0, landingBaseUrl.length - 1)
@@ -206,7 +207,7 @@ class _LandingEditScreenState extends ConsumerState<LandingEditScreen> {
     _websiteController.text = '$base/$userId';
   }
 
-  Future<void> _copyLandingUrl() async {
+  Future<void> _copyWebsiteUrl() async {
     final url = _websiteController.text.trim();
     if (url.isEmpty) return;
 
@@ -214,7 +215,7 @@ class _LandingEditScreenState extends ConsumerState<LandingEditScreen> {
     if (!mounted) return;
 
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Landing URL copied')),
+      const SnackBar(content: Text('Website URL copied')),
     );
   }
 
@@ -271,7 +272,10 @@ class _LandingEditScreenState extends ConsumerState<LandingEditScreen> {
 
     final imageUrl = data['image_url'] as String?;
     final imageKey = data['image_key'] as String?;
-    if (imageUrl == null || imageUrl.isEmpty || imageKey == null || imageKey.isEmpty) {
+    if (imageUrl == null ||
+        imageUrl.isEmpty ||
+        imageKey == null ||
+        imageKey.isEmpty) {
       throw Exception('Upload response missing image URL/key');
     }
 
@@ -337,22 +341,18 @@ class _LandingEditScreenState extends ConsumerState<LandingEditScreen> {
 
       await _upsertLanding(api, payload);
 
-      setState(() {
-        _imageUrl = effectiveImageUrl;
-        _pendingImagePath = null;
-        _removeImageOnSave = false;
-        _showLandingUrlAfterSave = true;
-      });
-
-      if (mounted) {
+      if (!mounted) return;
+      if (Navigator.of(context).canPop()) {
+        context.pop(true);
+      } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Landing page saved')),
+          const SnackBar(content: Text('Website details saved')),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error saving landing page: $e')),
+          SnackBar(content: Text('Error saving website details: $e')),
         );
       }
     } finally {
@@ -360,259 +360,264 @@ class _LandingEditScreenState extends ConsumerState<LandingEditScreen> {
     }
   }
 
+  Widget _buildWebsiteUrlCard(BuildContext context) {
+    final websiteUrl = _websiteController.text.trim();
+    if (websiteUrl.isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Website URL',
+            style: Theme.of(context).textTheme.labelLarge,
+          ),
+          const SizedBox(height: 6),
+          SelectableText(websiteUrl),
+          const SizedBox(height: 10),
+          OutlinedButton.icon(
+            onPressed: _copyWebsiteUrl,
+            icon: const Icon(Icons.copy_rounded),
+            label: const Text('Copy URL'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEditForm(BuildContext context) {
+    return Form(
+      key: _formKey,
+      child: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          TextFormField(
+            controller: _headlineController,
+            decoration: const InputDecoration(
+              labelText: 'Headline',
+              hintText: 'Your business headline',
+              alignLabelWithHint: true,
+            ),
+            minLines: 2,
+            maxLines: 2,
+            keyboardType: TextInputType.multiline,
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Description Points',
+                  style: Theme.of(context).textTheme.labelLarge,
+                ),
+              ),
+              TextButton.icon(
+                onPressed: _addDescriptionPoint,
+                icon: const Icon(Icons.add),
+                label: const Text('Add Point'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          ...List.generate(_descriptionPointControllers.length, (index) {
+            final isOnlyRow = _descriptionPointControllers.length == 1;
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(top: 14, right: 8),
+                    child: Text('${index + 1}.'),
+                  ),
+                  Expanded(
+                    child: TextFormField(
+                      controller: _descriptionPointControllers[index],
+                      decoration: InputDecoration(
+                        hintText: 'Point ${index + 1}',
+                      ),
+                      textInputAction: TextInputAction.next,
+                      onFieldSubmitted: (_) {
+                        if (index == _descriptionPointControllers.length - 1 &&
+                            _descriptionPointControllers[index]
+                                .text
+                                .trim()
+                                .isNotEmpty) {
+                          _addDescriptionPoint();
+                        }
+                      },
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: isOnlyRow ? 'Clear point' : 'Remove point',
+                    onPressed: () => _removeDescriptionPoint(index),
+                    icon: Icon(
+                      isOnlyRow ? Icons.clear : Icons.remove_circle_outline,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
+          if (_descriptionPointControllers.length == 1)
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Use Add Point for separate bullet lines.',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+              ),
+            ),
+          const SizedBox(height: 4),
+          const Divider(),
+          const SizedBox(height: 12),
+          Text(
+            'Website Image',
+            style: Theme.of(context).textTheme.labelLarge,
+          ),
+          const SizedBox(height: 8),
+          if (_pendingImagePath != null &&
+              File(_pendingImagePath!).existsSync())
+            Stack(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.file(
+                    File(_pendingImagePath!),
+                    height: 180,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+                Positioned(
+                  top: 4,
+                  right: 4,
+                  child: IconButton.filled(
+                    icon: const Icon(Icons.close, size: 18),
+                    onPressed: _removeImage,
+                  ),
+                ),
+              ],
+            )
+          else if (_imageUrl != null && _imageUrl!.isNotEmpty)
+            Stack(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.network(
+                    _imageUrl!,
+                    height: 180,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Container(
+                      height: 180,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Text('Unable to preview image'),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  top: 4,
+                  right: 4,
+                  child: IconButton.filled(
+                    icon: const Icon(Icons.close, size: 18),
+                    onPressed: _removeImage,
+                  ),
+                ),
+              ],
+            )
+          else
+            OutlinedButton.icon(
+              onPressed: _pickImage,
+              icon: const Icon(Icons.image_outlined),
+              label: const Text('Pick Image'),
+            ),
+          const SizedBox(height: 20),
+          TextFormField(
+            controller: _whatsappController,
+            decoration: const InputDecoration(
+              labelText: 'WhatsApp URL',
+              hintText: 'https://wa.me/91xxxxxxxxxx',
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextFormField(
+            controller: _facebookController,
+            decoration: const InputDecoration(
+              labelText: 'Facebook URL',
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextFormField(
+            controller: _instagramController,
+            decoration: const InputDecoration(
+              labelText: 'Instagram URL',
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextFormField(
+            controller: _youtubeController,
+            decoration: const InputDecoration(
+              labelText: 'YouTube URL',
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextFormField(
+            controller: _emailController,
+            decoration: const InputDecoration(
+              labelText: 'Email',
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextFormField(
+            controller: _locationController,
+            decoration: const InputDecoration(
+              labelText: 'Maps URL',
+              hintText: 'Google Maps link',
+            ),
+          ),
+          const SizedBox(height: 24),
+          FilledButton(
+            onPressed: _saving ? null : _save,
+            child: _saving
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Text('Save Website Details'),
+          ),
+          const SizedBox(height: 16),
+          _buildWebsiteUrlCard(context),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loading) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Landing Page')),
+        appBar: AppBar(title: const Text('Edit Website')),
         body: const Center(child: CircularProgressIndicator()),
       );
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Landing Page')),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            TextFormField(
-              controller: _headlineController,
-              decoration: const InputDecoration(
-                labelText: 'Headline',
-                hintText: 'Your business headline',
-                alignLabelWithHint: true,
-              ),
-              minLines: 2,
-              maxLines: 2,
-              keyboardType: TextInputType.multiline,
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Description Points',
-                    style: Theme.of(context).textTheme.labelLarge,
-                  ),
-                ),
-                TextButton.icon(
-                  onPressed: _addDescriptionPoint,
-                  icon: const Icon(Icons.add),
-                  label: const Text('Add Point'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            ...List.generate(_descriptionPointControllers.length, (index) {
-              final isOnlyRow = _descriptionPointControllers.length == 1;
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.only(top: 14, right: 8),
-                      child: Text('${index + 1}.'),
-                    ),
-                    Expanded(
-                      child: TextFormField(
-                        controller: _descriptionPointControllers[index],
-                        decoration: InputDecoration(
-                          hintText: 'Point ${index + 1}',
-                        ),
-                        textInputAction: TextInputAction.next,
-                        onFieldSubmitted: (_) {
-                          if (index ==
-                                  _descriptionPointControllers.length - 1 &&
-                              _descriptionPointControllers[index]
-                                  .text
-                                  .trim()
-                                  .isNotEmpty) {
-                            _addDescriptionPoint();
-                          }
-                        },
-                      ),
-                    ),
-                    IconButton(
-                      tooltip: isOnlyRow ? 'Clear point' : 'Remove point',
-                      onPressed: () => _removeDescriptionPoint(index),
-                      icon: Icon(
-                        isOnlyRow
-                            ? Icons.clear
-                            : Icons.remove_circle_outline,
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            }),
-            if (_descriptionPointControllers.length == 1)
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  'Use Add Point for separate bullet lines.',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                ),
-              ),
-            const SizedBox(height: 4),
-            const Divider(),
-            const SizedBox(height: 12),
-            Text(
-              'Landing Image',
-              style: Theme.of(context).textTheme.labelLarge,
-            ),
-            const SizedBox(height: 8),
-            if (_pendingImagePath != null &&
-                File(_pendingImagePath!).existsSync())
-              Stack(
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Image.file(
-                      File(_pendingImagePath!),
-                      height: 180,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                    ),
-                  ),
-                  Positioned(
-                    top: 4,
-                    right: 4,
-                    child: IconButton.filled(
-                      icon: const Icon(Icons.close, size: 18),
-                      onPressed: _removeImage,
-                    ),
-                  ),
-                ],
-              )
-            else if (_imageUrl != null && _imageUrl!.isNotEmpty)
-              Stack(
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Image.network(
-                      _imageUrl!,
-                      height: 180,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Container(
-                        height: 180,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          color: Theme.of(context)
-                              .colorScheme
-                              .surfaceContainerHighest,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Text('Unable to preview image'),
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    top: 4,
-                    right: 4,
-                    child: IconButton.filled(
-                      icon: const Icon(Icons.close, size: 18),
-                      onPressed: _removeImage,
-                    ),
-                  ),
-                ],
-              )
-            else
-              OutlinedButton.icon(
-                onPressed: _pickImage,
-                icon: const Icon(Icons.image_outlined),
-                label: const Text('Pick Image'),
-              ),
-            const SizedBox(height: 20),
-            TextFormField(
-              controller: _whatsappController,
-              decoration: const InputDecoration(
-                labelText: 'WhatsApp URL',
-                hintText: 'https://wa.me/91xxxxxxxxxx',
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _facebookController,
-              decoration: const InputDecoration(
-                labelText: 'Facebook URL',
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _instagramController,
-              decoration: const InputDecoration(
-                labelText: 'Instagram URL',
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _youtubeController,
-              decoration: const InputDecoration(
-                labelText: 'YouTube URL',
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _emailController,
-              decoration: const InputDecoration(
-                labelText: 'Email',
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _locationController,
-              decoration: const InputDecoration(
-                labelText: 'Maps URL',
-                hintText: 'Google Maps link',
-              ),
-            ),
-            const SizedBox(height: 24),
-            FilledButton(
-              onPressed: _saving ? null : _save,
-              child: _saving
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('Save Landing Page'),
-            ),
-            if (_showLandingUrlAfterSave &&
-                _websiteController.text.trim().isNotEmpty) ...[
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Landing URL',
-                      style: Theme.of(context).textTheme.labelLarge,
-                    ),
-                    const SizedBox(height: 6),
-                    SelectableText(_websiteController.text.trim()),
-                    const SizedBox(height: 10),
-                    OutlinedButton.icon(
-                      onPressed: _copyLandingUrl,
-                      icon: const Icon(Icons.copy_rounded),
-                      label: const Text('Copy URL'),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
+      appBar: AppBar(title: const Text('Edit Website')),
+      body: _buildEditForm(context),
     );
   }
 }

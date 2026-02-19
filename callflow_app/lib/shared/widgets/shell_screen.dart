@@ -54,7 +54,7 @@ class ShellScreen extends ConsumerWidget {
           NavigationDestination(
             icon: Icon(Icons.public_outlined),
             selectedIcon: Icon(Icons.public),
-            label: 'Landing',
+            label: 'Website',
           ),
           NavigationDestination(
             icon: Icon(Icons.settings_outlined),

@@ -65,17 +65,11 @@ export default function LandingContent({ user = {}, landing = {} }) {
           <h1>{headline}</h1>
           {descriptionPoints.length ? (
             <ul className="hero-points">
-              {descriptionPoints.slice(0, 3).map((point, index) => (
+              {descriptionPoints.map((point, index) => (
                 <li key={`${point}-${index}`}>{point}</li>
               ))}
             </ul>
           ) : null}
-          <div className="meta">
-            {user.phone ? <span>{user.phone}</span> : null}
-            {user.address || user.city ? (
-              <span>{[user.address, user.city].filter(Boolean).join(', ')}</span>
-            ) : null}
-          </div>
           {actions.length ? (
             <div className="actions">
               {actions.map((action) => (
@@ -86,17 +80,6 @@ export default function LandingContent({ user = {}, landing = {} }) {
             </div>
           ) : null}
         </div>
-      </section>
-
-      <section className="section">
-        {imageUrl ? <img src={imageUrl} alt={headline} /> : null}
-        {descriptionPoints.length ? (
-          <ul className="description-list">
-            {descriptionPoints.map((point, index) => (
-              <li key={`${point}-${index}`}>{point}</li>
-            ))}
-          </ul>
-        ) : null}
       </section>
     </main>
   );
