@@ -29,21 +29,26 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
     final shouldContinue = await _checkVersion();
     if (!shouldContinue) return;
 
-    final hasToken = await AuthInterceptor.hasTokens();
-    final db = ref.read(databaseProvider);
-    final user = await db.getUser();
-    if (!hasToken || user == null) {
+    try {
+      final hasToken = await AuthInterceptor.hasTokens();
+      final db = ref.read(databaseProvider);
+      final user = await db.getUser();
+      if (!hasToken || user == null) {
+        if (mounted) context.go('/auth/phone');
+        return;
+      }
+
+      final allGranted = await _checkAllPermissions();
+      if (!allGranted) {
+        if (mounted) context.go('/auth/permissions');
+        return;
+      }
+
+      if (mounted) context.go('/dashboard');
+    } catch (e) {
+      debugPrint('Splash initialization failed: $e');
       if (mounted) context.go('/auth/phone');
-      return;
     }
-
-    final allGranted = await _checkAllPermissions();
-    if (!allGranted) {
-      if (mounted) context.go('/auth/permissions');
-      return;
-    }
-
-    if (mounted) context.go('/dashboard');
   }
 
   Future<bool> _checkAllPermissions() async {

@@ -24,7 +24,7 @@ dependencies:
 
   # Local database
   drift: ^2.15.0
-  sqlite3_flutter_libs: ^0.6.0+eol
+  sqlite3_flutter_libs: 0.5.41
 
   # Auth
   flutter_secure_storage: ^10.0.0

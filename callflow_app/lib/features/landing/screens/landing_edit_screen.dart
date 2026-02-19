@@ -54,27 +54,19 @@ class _LandingEditScreenState extends ConsumerState<LandingEditScreen> {
 
   Future<void> _loadLanding() async {
     setState(() => _loading = true);
+    final api = ref.read(apiClientProvider);
     try {
-      final api = ref.read(apiClientProvider);
       final response = await api.get('/landing');
-      final body = response.data;
-      if (body is Map) {
-        final data = body['data'];
-        if (data is Map) {
-          final landing = data['landing'] is Map
-              ? Map<String, dynamic>.from(data['landing'] as Map)
-              : <String, dynamic>{};
-          _headlineController.text = landing['headline'] as String? ?? '';
-          _descriptionController.text = landing['description'] as String? ?? '';
-          _whatsappController.text = landing['whatsapp_url'] as String? ?? '';
-          _facebookController.text = landing['facebook_url'] as String? ?? '';
-          _instagramController.text = landing['instagram_url'] as String? ?? '';
-          _youtubeController.text = landing['youtube_url'] as String? ?? '';
-          _emailController.text = landing['email'] as String? ?? '';
-          _websiteController.text = landing['website_url'] as String? ?? '';
-          _imageUrl = landing['image_url'] as String?;
-          _locationController.text = data['location_url'] as String? ?? '';
-        }
+      _applyLandingResponse(response.data);
+    } on DioException catch (e) {
+      // Older backend versions may respond 404 when landing is not created yet.
+      // Treat this as an empty state so users can create content.
+      if (e.response?.statusCode == 404) {
+        await _loadLocationFromProfile(api);
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load landing page: $e')),
+        );
       }
     } catch (e) {
       if (mounted) {
@@ -84,6 +76,43 @@ class _LandingEditScreenState extends ConsumerState<LandingEditScreen> {
       }
     } finally {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  void _applyLandingResponse(dynamic body) {
+    if (body is! Map) return;
+    final data = body['data'];
+    if (data is! Map) return;
+
+    final payload = Map<String, dynamic>.from(data);
+    final landing = payload['landing'] is Map
+        ? Map<String, dynamic>.from(payload['landing'] as Map)
+        : <String, dynamic>{};
+
+    _headlineController.text = landing['headline'] as String? ?? '';
+    _descriptionController.text = landing['description'] as String? ?? '';
+    _whatsappController.text = landing['whatsapp_url'] as String? ?? '';
+    _facebookController.text = landing['facebook_url'] as String? ?? '';
+    _instagramController.text = landing['instagram_url'] as String? ?? '';
+    _youtubeController.text = landing['youtube_url'] as String? ?? '';
+    _emailController.text = landing['email'] as String? ?? '';
+    _websiteController.text = landing['website_url'] as String? ?? '';
+    _imageUrl = landing['image_url'] as String?;
+    _locationController.text = payload['location_url'] as String? ?? '';
+  }
+
+  Future<void> _loadLocationFromProfile(ApiClient api) async {
+    try {
+      final response = await api.get('/user/profile');
+      final body = response.data;
+      if (body is! Map) return;
+      final data = body['data'];
+      if (data is! Map) return;
+      final user = data['user'];
+      if (user is! Map) return;
+      _locationController.text = user['location_url'] as String? ?? '';
+    } catch (_) {
+      // No-op: location field can remain empty if profile fetch fails.
     }
   }
 
