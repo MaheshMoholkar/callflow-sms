@@ -16,6 +16,15 @@ export function I18nProvider({ children }) {
   const [language, setLanguage] = useState(DEFAULT_LANG);
 
   useEffect(() => {
+    const pathname = window.location.pathname || '/';
+    const isUserLandingPage = pathname.split('/').filter(Boolean).length === 1;
+
+    if (isUserLandingPage) {
+      setLanguage('mr');
+      window.localStorage.setItem('adflow_lang', 'mr');
+      return;
+    }
+
     const stored = window.localStorage.getItem('adflow_lang');
     if (SUPPORTED_LANGS.includes(stored)) {
       setLanguage(stored);
